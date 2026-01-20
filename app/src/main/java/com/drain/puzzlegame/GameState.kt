@@ -68,10 +68,14 @@ class GameState(private val level: LevelConfig) {
          * Create a GameState with a default test level
          */
         fun createDefaultLevel(): GameState {
-            val level = LevelConfig.createSimpleLevel(
+            val level = LevelConfig(
                 gridSize = 5,
+                startPosition = GridPosition(2, 2),
                 targets = listOf(
-                    TargetConfig(GridPosition(1, 3), 6)
+                    TargetConfig(GridPosition(1, 3), 3)  // Adjusted target number for testing with modifier
+                ),
+                modifiers = listOf(
+                    ModifierConfig(GridPosition(2, 1), ModifierType.RESET, value = 0)
                 )
             )
             return GameState(level)
@@ -132,7 +136,43 @@ class GameState(private val level: LevelConfig) {
 
     fun getNumberForPosition(position: GridPosition): Int? {
         val index = path.indexOf(position)
-        return if (index >= 0) index else null
+        if (index < 0) return null
+
+        return calculateCounterAtIndex(index)
+    }
+
+    /**
+     * Calculate the counter value at a specific index in the path,
+     * considering all modifiers encountered before it
+     */
+    private fun calculateCounterAtIndex(targetIndex: Int): Int {
+        var counter = 0
+
+        for (i in 0..targetIndex) {
+            val pos = path[i]
+            val tile = tiles[pos]
+
+            // Apply modifier effects when we land on them
+            if (i > 0 && tile?.isModifier == true) {
+                when (tile.modifierType) {
+                    ModifierType.RESET -> counter = (tile.modifierValue ?: 0)
+                    ModifierType.ADD -> counter += (tile.modifierValue ?: 0)
+                    ModifierType.SUBTRACT -> counter -= (tile.modifierValue ?: 0)
+                    ModifierType.MULTIPLY -> counter *= (tile.modifierValue ?: 1)
+                    ModifierType.SET_INCREMENT -> {
+                        // This would change the increment amount for future steps
+                        // Not implementing this yet as it's more complex
+                    }
+                    null -> {} // No modifier
+                }
+            } else if (i > 0) {
+                // Regular tile: increment by 1
+                counter++
+            }
+            // i == 0 is the start position, counter stays at 0
+        }
+
+        return counter
     }
 
     private fun checkWinCondition() {
@@ -150,7 +190,11 @@ class GameState(private val level: LevelConfig) {
         if (!tile.isTarget || tile.targetNumber == null) return false
 
         val pathIndex = path.indexOf(position)
-        return pathIndex >= 0 && pathIndex == tile.targetNumber
+        if (pathIndex < 0) return false
+
+        // Use the actual counter value (which considers modifiers), not just the path index
+        val counterValue = calculateCounterAtIndex(pathIndex)
+        return counterValue == tile.targetNumber
     }
 
     /**

@@ -185,6 +185,16 @@ private fun getTileColors(
             border = GameColors.targetUnvisitedBorder,
             text = GameColors.textActive
         )
+        tile.isModifier && isInPath -> TileColors(
+            background = GameColors.modifierInPath,
+            border = GameColors.modifierInPathBorder,
+            text = GameColors.textActive
+        )
+        tile.isModifier -> TileColors(
+            background = GameColors.modifierBackground,
+            border = GameColors.modifierBorder,
+            text = GameColors.textActive
+        )
         isInPath -> TileColors(
             background = GameColors.pathBackground,
             border = GameColors.pathBorder,
@@ -205,8 +215,24 @@ private fun getTileDisplayText(tile: Tile, pathNumber: Int?): String {
     return when {
         tile.isStart -> "0"
         tile.isTarget -> tile.targetNumber?.toString() ?: ""
+        tile.isModifier -> getModifierDisplayText(tile.modifierType, tile.modifierValue)
         pathNumber != null -> pathNumber.toString()
         else -> ""
+    }
+}
+
+/**
+ * Get display text for modifier tiles
+ */
+private fun getModifierDisplayText(modifierType: ModifierType?, value: Int?): String {
+    val valueStr = value?.toString() ?: "0"
+    return when (modifierType) {
+        ModifierType.RESET -> "=$valueStr"
+        ModifierType.ADD -> "+$valueStr"
+        ModifierType.SUBTRACT -> "-$valueStr"
+        ModifierType.MULTIPLY -> "×$valueStr"
+        ModifierType.SET_INCREMENT -> "↑$valueStr"
+        null -> ""
     }
 }
 

@@ -27,6 +27,12 @@ object GameColors {
     val emptyBackground = Color(0xFFF5F5F5)
     val emptyBorder = Color(0xFFCCCCCC)
 
+    // Modifier colors
+    val modifierBackground = Color(0xFF5C6BC0) // Purple-blue
+    val modifierBorder = Color(0xFF3949AB)
+    val modifierInPath = Color(0xFF7E88C3) // Lighter purple-blue when in path
+    val modifierInPathBorder = Color(0xFF5C6BC0)
+
     // Text colors
     val textActive = Color.White
     val textInactive = Color.Gray
