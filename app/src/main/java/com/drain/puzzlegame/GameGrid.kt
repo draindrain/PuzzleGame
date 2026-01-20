@@ -24,18 +24,37 @@ fun GameGrid(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val tileSize = with(density) { 64.dp.toPx() }
-    val tileSpacing = with(density) { 8.dp.toPx() }
+    val tileSize = with(density) { GameDimensions.tileSize.toPx() }
+    val tileSpacing = with(density) { GameDimensions.tileSpacing.toPx() }
 
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .pointerInput(Unit) {
+            verticalArrangement = Arrangement.spacedBy(GameDimensions.sectionSpacing)
+        ) {
+            // Win message
+            if (gameState.isComplete) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    text = "Puzzle Complete!",
+                    fontSize = GameDimensions.winMessageFontSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GameColors.winMessage
+                )
+            } else {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
+
+            // Grid
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(GameDimensions.gridSpacing),
+                modifier = Modifier
+                    .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -73,20 +92,22 @@ fun GameGrid(
                     }
                 }
         ) {
-            for (row in 0 until gameState.gridSize) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    for (col in 0 until gameState.gridSize) {
-                        val position = GridPosition(row, col)
-                        val tile = gameState.tiles[position]
+                for (row in 0 until gameState.gridSize) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(GameDimensions.gridSpacing)
+                    ) {
+                        for (col in 0 until gameState.gridSize) {
+                            val position = GridPosition(row, col)
+                            val tile = gameState.tiles[position]
 
-                        if (tile != null) {
-                            TileView(
-                                tile = tile,
-                                isInPath = position in gameState.path,
-                                number = gameState.getNumberForPosition(position)
-                            )
+                            if (tile != null) {
+                                TileView(
+                                    tile = tile,
+                                    isInPath = position in gameState.path,
+                                    pathNumber = gameState.getNumberForPosition(position),
+                                    isTargetMet = gameState.isTargetMet(position)
+                                )
+                            }
                         }
                     }
                 }
@@ -99,35 +120,93 @@ fun GameGrid(
 fun TileView(
     tile: Tile,
     isInPath: Boolean,
-    number: Int?,
+    pathNumber: Int?,
+    isTargetMet: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = when {
-        tile.isStart -> Color(0xFF4A90E2) // Blue for start
-        isInPath -> Color(0xFF7EC8E3) // Light blue for path
-        else -> Color(0xFFF5F5F5) // Light gray for empty
-    }
-
-    val borderColor = when {
-        tile.isStart -> Color(0xFF2E5C8A)
-        isInPath -> Color(0xFF4A90E2)
-        else -> Color(0xFFCCCCCC)
-    }
+    val isTargetInPath = tile.isTarget && isInPath
+    val colors = getTileColors(tile, isInPath, isTargetMet, isTargetInPath)
 
     Box(
         modifier = modifier
-            .size(64.dp)
-            .background(backgroundColor, RoundedCornerShape(12.dp))
-            .border(3.dp, borderColor, RoundedCornerShape(12.dp))
-            .padding(4.dp),
+            .size(GameDimensions.tileSize)
+            .background(colors.background, RoundedCornerShape(GameDimensions.tileCornerRadius))
+            .border(GameDimensions.tileBorderWidth, colors.border, RoundedCornerShape(GameDimensions.tileCornerRadius))
+            .padding(GameDimensions.tilePadding),
         contentAlignment = Alignment.Center
     ) {
+        val displayText = getTileDisplayText(tile, pathNumber)
+
         Text(
-            text = number?.toString() ?: if (tile.isStart) "0" else "",
-            fontSize = 24.sp,
+            text = displayText,
+            fontSize = GameDimensions.tileFontSize.sp,
             fontWeight = FontWeight.Bold,
-            color = if (tile.isStart || isInPath) Color.White else Color.Gray
+            color = colors.text
         )
+    }
+}
+
+/**
+ * Data class to hold tile colors
+ */
+private data class TileColors(
+    val background: Color,
+    val border: Color,
+    val text: Color
+)
+
+/**
+ * Get colors for a tile based on its state
+ */
+private fun getTileColors(
+    tile: Tile,
+    isInPath: Boolean,
+    isTargetMet: Boolean,
+    isTargetInPath: Boolean
+): TileColors {
+    return when {
+        tile.isStart -> TileColors(
+            background = GameColors.startBackground,
+            border = GameColors.startBorder,
+            text = GameColors.textActive
+        )
+        tile.isTarget && isTargetMet -> TileColors(
+            background = GameColors.targetMet,
+            border = GameColors.targetMetBorder,
+            text = GameColors.textActive
+        )
+        isTargetInPath && !isTargetMet -> TileColors(
+            background = GameColors.targetNotMet,
+            border = GameColors.targetNotMetBorder,
+            text = GameColors.textActive
+        )
+        tile.isTarget && !isInPath -> TileColors(
+            background = GameColors.targetUnvisited,
+            border = GameColors.targetUnvisitedBorder,
+            text = GameColors.textActive
+        )
+        isInPath -> TileColors(
+            background = GameColors.pathBackground,
+            border = GameColors.pathBorder,
+            text = GameColors.textActive
+        )
+        else -> TileColors(
+            background = GameColors.emptyBackground,
+            border = GameColors.emptyBorder,
+            text = GameColors.textInactive
+        )
+    }
+}
+
+/**
+ * Get the display text for a tile
+ */
+private fun getTileDisplayText(tile: Tile, pathNumber: Int?): String {
+    return when {
+        tile.isStart -> "0"
+        tile.isTarget -> tile.targetNumber?.toString() ?: ""
+        pathNumber != null -> pathNumber.toString()
+        else -> ""
     }
 }
 

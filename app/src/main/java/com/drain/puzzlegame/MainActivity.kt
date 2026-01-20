@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PuzzleGameScreen(modifier: Modifier = Modifier) {
-    val gameState = remember { GameState(gridSize = 5) }
+    val gameState = remember { GameState.createDefaultLevel() }
 
     GameGrid(
         gameState = gameState,
